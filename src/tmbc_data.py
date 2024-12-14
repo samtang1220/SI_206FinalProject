@@ -34,13 +34,13 @@ def get_genres_data(cursor):
         print(f"Error fetching genres: {response.status_code}")
 
 
-def fetch_movies(cursor, page):
+def fetch_movies_data(cursor, page):
     """
-    Fetch popular movies from the TMDb API and populate the movies table.
+    Fetch popular movies and populate movie_data table.
     """
-    movies_url = "https://api.themoviedb.org/3/movie/popular"
-    params = {"api_key": API_KEY, "page": page}
-    response = requests.get(f"{movies_url}?{urllib.parse.urlencode(params)}")
+    url = "https://api.themoviedb.org/3/movie/popular"
+    params = {"api_key": "534c070c9fbe944cad05621b481f65f8", "page": page}
+    response = requests.get(url, params=params)
 
     if response.status_code == 200:
         movies = response.json().get("results", [])
@@ -50,17 +50,27 @@ def fetch_movies(cursor, page):
             genre_ids = movie.get("genre_ids", [])
             genre_id = genre_ids[0] if genre_ids else None
             popularity = movie.get("popularity", 0.0)
-            rating = movie.get("vote_average", None)
+            avg_rating = movie.get("vote_average", None)
+            vote_count = movie.get("vote_count", None)
             release_date = movie.get("release_date", None)
-            revenue = fetch_movie_details(movie_id).get("revenue", None)
+            
+            # Fetch detailed data (runtime, revenue)
+            detail_url = f"https://api.themoviedb.org/3/movie/{movie_id}"
+            detail_response = requests.get(detail_url, params={"api_key": "534c070c9fbe944cad05621b481f65f8"})
+            detail_data = detail_response.json() if detail_response.status_code == 200 else {}
+            runtime = detail_data.get("runtime", None)
+            revenue = detail_data.get("revenue", None)
+            language = movie.get("original_language", "Unknown")
 
             cursor.execute("""
-                INSERT OR IGNORE INTO movies (id, title, genre_id, popularity, rating, release_date, revenue)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (movie_id, title, genre_id, popularity, rating, release_date, revenue))
+                INSERT OR IGNORE INTO movie_data 
+                (movie_id, title, genre_id, popularity, avg_rating, vote_count, release_date, revenue, runtime, language)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (movie_id, title, genre_id, popularity, avg_rating, vote_count, release_date, revenue, runtime, language))
         print(f"Movies added from page {page}.")
     else:
         print(f"Error fetching movies from page {page}: {response.status_code}")
+
 
 
 
@@ -91,7 +101,7 @@ def main():
 
     # Populate movies table (fetching data from the first 5 pages of popular movies)
     for page in range(1, 6):
-        fetch_movies(cursor, page)
+        fetch_movies_data(cursor, page)
 
     conn.commit()
     conn.close()

@@ -23,28 +23,24 @@ def create_tables(conn):
     """
     cur = conn.cursor()
 
-    # Create movies table
+    # Create movie_data table
     cur.execute('''
-        CREATE TABLE IF NOT EXISTS movies (
-            id INTEGER PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS movie_data (
+            movie_id INTEGER PRIMARY KEY,
             title TEXT,
             genre_id INTEGER,
             popularity REAL,
-            rating REAL,
+            avg_rating REAL,
+            vote_count INTEGER,
             release_date TEXT,
-            revenue INTEGER
-        )
-    ''')
-
-    # Create genres table
-    cur.execute('''
-        CREATE TABLE IF NOT EXISTS genres (
-            id INTEGER PRIMARY KEY,
-            name TEXT
+            revenue INTEGER,
+            runtime INTEGER,
+            language TEXT
         )
     ''')
 
     conn.commit()
+
 
 
 def main():
