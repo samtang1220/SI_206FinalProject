@@ -30,66 +30,63 @@ def genre_revenue_bar_chart():
     plt.show()
 
 
-def movie_count_by_language():
+def movie_count_by_language(n=5):
     """
-    Create a pie chart to display the distribution of movies by language with a key for language codes.
+    Create a pie chart for movie counts by language, showing the top N languages
+    and aggregating others into an "Others" category.
     """
-    # Map of language codes to full names
-    language_map = {
-        'en': 'English',
-        'es': 'Spanish',
-        'fr': 'French',
-        'de': 'German',
-        'zh': 'Chinese',
-        'ja': 'Japanese',
-        'ko': 'Korean',
-        'it': 'Italian',
-        'hi': 'Hindi',
-        'pt': 'Portuguese',
-    }
-
+    # Connect to the database
     conn = sqlite3.connect(DB_PATH)
+    
+    # Query the database for movie counts by language
     query = """
-        SELECT cm.language, COUNT(*) AS movie_count
-        FROM movies cm
-        GROUP BY cm.language
+        SELECT language, COUNT(*) AS movie_count
+        FROM movies
+        GROUP BY language
         ORDER BY movie_count DESC
-        LIMIT 10  -- Limit to the top 10 languages for readability
     """
     df = pd.read_sql_query(query, conn)
     conn.close()
 
-    # Replace language codes with full names in the legend
-    df['full_language'] = df['language'].map(language_map).fillna('Unknown')
+    # Separate top N languages and aggregate the rest
+    top_n = df.head(n)
+    others = pd.DataFrame([{
+        "language": "Others",
+        "movie_count": df["movie_count"].iloc[n:].sum()
+    }])
+    df_combined = pd.concat([top_n, others], ignore_index=True)
 
     # Create the pie chart
-    fig, ax = plt.subplots(figsize=(8, 6))
-    wedges, texts, autotexts = ax.pie(
-        df['movie_count'],
-        labels=df['language'],
-        autopct='%1.1f%%',
+    plt.figure(figsize=(8, 8))
+    plt.pie(
+        df_combined["movie_count"],
+        labels=df_combined["language"],
+        autopct=lambda pct: f'{pct:.1f}%',
         startangle=140,
         colors=plt.cm.Paired.colors,
-        textprops={'fontsize': 8}
+        textprops={'fontsize': 8}  # Reduce font size
     )
+    plt.title('Movie Count by Language (Top 5 + Others)', fontsize=12)
+    
+    # Add a legend to explain the language codes
+    legend_labels = {
+        "en": "English",
+        "ja": "Japanese",
+        "es": "Spanish",
+        "ko": "Korean",
+        "fr": "French",
+        "it": "Italian",
+        "zh": "Chinese",
+        "Others": "All Other Languages"
+    }
+    legend_text = "\n".join([f"{k} = {v}" for k, v in legend_labels.items()])
+    plt.figtext(0.9, 0.5, legend_text, fontsize=8, ha="left", wrap=True)
 
-    # Add a legend showing both the language code and full name
-    legend_labels = [f"{code} = {name}" for code, name in zip(df['language'], df['full_language'])]
-    ax.legend(
-        wedges,
-        legend_labels,
-        title="Language Key",
-        loc="center left",
-        bbox_to_anchor=(1, 0, 0.5, 1),
-        fontsize="small"
-    )
-
-    # Title and formatting
-    plt.title('Movie Count by Language (Top 10)', fontsize=14)
-    plt.axis('equal')  # Ensures the pie chart is circular
     plt.tight_layout()
     plt.show()
-
+    
+if __name__ == "__main__":
+    movie_count_by_language(n=5)
 
 def main():
     """
