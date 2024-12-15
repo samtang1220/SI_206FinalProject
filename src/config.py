@@ -1,6 +1,4 @@
 import os
-import sqlite3
-
 
 # API key for TMDb
 API_KEY = "534c070c9fbe944cad05621b481f65f8"
