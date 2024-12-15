@@ -71,7 +71,7 @@ def main():
     fetch_genres(cursor)
 
     # Fetch movies (fetch from first 20 pages as an example)
-    for page in range(1, 3):
+    for page in range(1, 21):
         fetch_movies(cursor, page)
 
     conn.commit()
