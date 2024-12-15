@@ -20,8 +20,9 @@ def genre_revenue_bar_chart():
     df = pd.read_sql_query(query, conn)
     conn.close()
 
-    # Plot the data
-    plt.bar(df['genre'], df['total_revenue'] / 1e6, color='skyblue')  # Revenue in millions
+    plt.figure(figsize=(10, 6))
+    bars = plt.bar(df['genre'], df['total_revenue'] / 1e6, color='lightpink', edgecolor='blue', linewidth=1.5)  # Revenue in millions
+
     plt.xlabel('Genres')
     plt.ylabel('Total Revenue (in Millions)')
     plt.title('Total Revenue by Genre')
