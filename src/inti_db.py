@@ -1,7 +1,6 @@
 import sqlite3
 import os
 
-
 def connect_to_database():
     """
     Connect to the SQLite database. If the database doesn't exist, create it.
@@ -23,24 +22,34 @@ def create_tables(conn):
     """
     cur = conn.cursor()
 
-    # Create movie_data table
+    # Drop tables if they already exist (optional for reset)
+    cur.execute("DROP TABLE IF EXISTS movies;")
+    cur.execute("DROP TABLE IF EXISTS genres;")
+
+    # Create genres table
     cur.execute('''
-        CREATE TABLE IF NOT EXISTS movie_data (
-            movie_id INTEGER PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS genres (
+            id INTEGER PRIMARY KEY,
+            name TEXT
+        )
+    ''')
+
+    # Create movies table
+    cur.execute('''
+        CREATE TABLE IF NOT EXISTS movies (
+            id INTEGER PRIMARY KEY,
             title TEXT,
             genre_id INTEGER,
             popularity REAL,
-            avg_rating REAL,
-            vote_count INTEGER,
+            rating REAL,
             release_date TEXT,
             revenue INTEGER,
-            runtime INTEGER,
-            language TEXT
+            language TEXT,
+            FOREIGN KEY (genre_id) REFERENCES genres (id)
         )
     ''')
 
     conn.commit()
-
 
 
 def main():
