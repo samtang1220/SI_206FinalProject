@@ -86,8 +86,8 @@ def movie_count_by_language(n=5):
         "es": "Spanish",
         "ko": "Korean",
         "fr": "French",
-        "it": "Italian",
-        "zh": "Chinese",
+        # "it": "Italian",
+        # "zh": "Chinese",
         "Others": "All Other Languages"
     }
     legend_text = "\n".join([f"{k} = {v}" for k, v in legend_labels.items()])

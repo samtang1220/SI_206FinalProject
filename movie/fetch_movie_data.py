@@ -13,7 +13,7 @@ def fetch_movie_data(target=100, max_per_run=20):
     db_connection = sqlite3.connect(DB_PATH)
     db_cursor = db_connection.cursor()
 
-    # Check the current count of movies in the database
+    # check the count 
     db_cursor.execute("SELECT COUNT(DISTINCT id) FROM movies")
     current_count = db_cursor.fetchone()[0]
 
@@ -39,7 +39,7 @@ def fetch_movie_data(target=100, max_per_run=20):
             movie_batch = []
             genre_batch = []
             for movie in movies:
-                # Avoid adding duplicates by checking database first
+                # avoid adding dups
                 db_cursor.execute("SELECT COUNT(*) FROM movies WHERE id = ?", (movie["id"],))
                 if db_cursor.fetchone()[0] > 0:
                     continue
@@ -69,7 +69,7 @@ def fetch_movie_data(target=100, max_per_run=20):
                 if added_movies >= limit:
                     break
 
-            # Insert data into the database
+            # insert into data
             db_cursor.executemany("INSERT OR IGNORE INTO genres (id, name) VALUES (?, ?)", genre_batch)
             db_cursor.executemany(
                 """

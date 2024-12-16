@@ -3,7 +3,7 @@ import pandas as pd
 import os
 from config import DB_PATH
 
-# Ensure the output folder exists
+
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "../output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
@@ -58,11 +58,11 @@ def write_output_to_calc(dataframes, filename):
     print(f"Saved combined analysis to {filepath}")
 
 if __name__ == "__main__":
-    # Perform analyses
+    # analyses
     popularity_by_genre_df = get_popularity_by_genre()
     avg_revenue_by_genre_df = calculate_avg_revenue_by_genre()
 
-    # Write results to a single text file
+    # write results to a single text file
     write_output_to_calc([
         ("# Analysis 1: Total Popularity by Genre", popularity_by_genre_df),
         ("# Analysis 2: Average Revenue by Genre", avg_revenue_by_genre_df)

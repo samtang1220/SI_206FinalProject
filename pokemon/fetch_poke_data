@@ -15,7 +15,7 @@ def fetch_pokemon_data(target=100, max_per_run=25):
     db_connection = sqlite3.connect(DB_PATH)
     db_cursor = db_connection.cursor()
 
-    # Ensure the Pokémon table exists
+    # the table exists
     db_cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS pokemons (
@@ -30,7 +30,7 @@ def fetch_pokemon_data(target=100, max_per_run=25):
     )
     db_connection.commit()
 
-    # Check the current count of Pokémon in the database
+    # check the current count in the database
     db_cursor.execute("SELECT COUNT(DISTINCT name) FROM pokemons")
     current_count = db_cursor.fetchone()[0]
 
@@ -40,7 +40,7 @@ def fetch_pokemon_data(target=100, max_per_run=25):
         return
 
     remaining = target - current_count
-    limit = min(remaining, max_per_run)  # Fetch only what's needed to reach the target
+    limit = min(remaining, max_per_run)  
     offset = current_count
 
     url = f"https://pokeapi.co/api/v2/pokemon?limit={limit}&offset={offset}"
@@ -61,7 +61,7 @@ def fetch_pokemon_data(target=100, max_per_run=25):
             speed = detailed_data['stats'][5]['base_stat']
             pokemon_batch.append((name, poke_type, attack, defense, speed))
 
-        # Insert Pokémon data into the database
+        # insert data into the database
         db_cursor.executemany(
             "INSERT OR IGNORE INTO pokemons (name, type, attack, defense, speed) VALUES (?, ?, ?, ?, ?)",
             pokemon_batch

@@ -2,7 +2,7 @@ import sqlite3
 from poke_config import DB_PATH
 
 def analyze_data():
-    db_connection = sqlite3.connect(DB_PATH)  # Use data.db as the database
+    db_connection = sqlite3.connect(DB_PATH)  
     db_cursor = db_connection.cursor()
 
     db_cursor.execute("SELECT type, COUNT(*) FROM pokemons GROUP BY type")
