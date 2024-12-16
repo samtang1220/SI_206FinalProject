@@ -1,0 +1,32 @@
+
+# Analysis 1: Total Popularity by Genre
+     genre_name  total_popularity
+         Action         31505.249
+      Animation         14538.893
+         Horror          6662.706
+          Drama          3532.013
+      Adventure          2348.668
+        Romance          2179.787
+Science Fiction          2156.025
+         Comedy          1902.154
+       Thriller          1622.166
+          Crime           937.618
+         Family           490.880
+            War           326.504
+       TV Movie           262.494
+
+
+# Analysis 2: Average Revenue by Genre
+     genre_name  avg_revenue
+      Adventure 5.742886e+08
+Science Fiction 4.950068e+08
+      Animation 4.904553e+08
+         Family 3.458000e+08
+         Comedy 2.746523e+08
+         Action 2.356639e+08
+          Drama 1.721323e+08
+         Horror 1.101481e+08
+          Crime 5.889585e+07
+        Romance 3.181841e+07
+       Thriller 8.648250e+05
+
