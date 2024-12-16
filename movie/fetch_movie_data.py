@@ -1,82 +1,95 @@
 import sqlite3
 import requests
 import json
-from config import DB_PATH
+from config import DB_PATH, API_KEY
 
-API_KEY = "534c070c9fbe944cad05621b481f65f8"
+def fetch_data(url):
+    headers = {"User-Agent": "SI206-Movie-Stats-Project"}
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    return response.json()
 
-def fetch_genres(cursor):
-    """
-    Fetch genres from the TMDb API and populate the genres table.
-    """
-    url = f"https://api.themoviedb.org/3/genre/movie/list?api_key={API_KEY}&language=en-US"
-    response = requests.get(url)
+def fetch_movie_data(target=100, max_per_run=20):
+    db_connection = sqlite3.connect(DB_PATH)
+    db_cursor = db_connection.cursor()
 
-    if response.status_code == 200:
-        genres = response.json().get("genres", [])
-        for genre in genres:
-            cursor.execute("""
-                INSERT OR IGNORE INTO genres (id, name)
-                VALUES (?, ?)
-            """, (genre["id"], genre["name"]))
-        print("Genres table populated successfully.")
-    else:
-        print(f"Failed to fetch genres: {response.status_code}")
+    # Check the current count of movies in the database
+    db_cursor.execute("SELECT COUNT(DISTINCT id) FROM movies")
+    current_count = db_cursor.fetchone()[0]
 
-def fetch_movies(cursor, page):
-    """
-    Fetch popular movies from the TMDb API and populate the movies table.
-    """
-    url = f"https://api.themoviedb.org/3/movie/popular?api_key={API_KEY}&language=en-US&page={page}"
-    response = requests.get(url)
+    if current_count >= target:
+        print(f"Final movie count: {current_count} movies.")
+        db_connection.close()
+        return
 
-    if response.status_code == 200:
-        movies = response.json().get("results", [])
-        for movie in movies:
-            # Second API call to get revenue
-            movie_details_url = f"https://api.themoviedb.org/3/movie/{movie['id']}?api_key={API_KEY}&language=en-US"
-            movie_details_response = requests.get(movie_details_url)
+    remaining = target - current_count
+    limit = min(remaining, max_per_run)
 
-            if movie_details_response.status_code == 200:
-                movie_details = movie_details_response.json()
+    added_movies = 0
+    page = 1
+    while added_movies < limit:
+        url = f"https://api.themoviedb.org/3/movie/popular?api_key={API_KEY}&language=en-US&page={page}"
+        try:
+            data = fetch_data(url)
+            movies = data.get("results", [])
+
+            if not movies:
+                break
+
+            movie_batch = []
+            genre_batch = []
+            for movie in movies:
+                # Avoid adding duplicates by checking database first
+                db_cursor.execute("SELECT COUNT(*) FROM movies WHERE id = ?", (movie["id"],))
+                if db_cursor.fetchone()[0] > 0:
+                    continue
+
+                movie_details_url = f"https://api.themoviedb.org/3/movie/{movie['id']}?api_key={API_KEY}&language=en-US"
+                movie_details = fetch_data(movie_details_url)
+
+                genre_id = movie_details["genres"][0]["id"] if movie_details["genres"] else None
+                genre_name = movie_details["genres"][0]["name"] if movie_details["genres"] else None
                 revenue = movie_details.get("revenue", 0)
-            else:
-                revenue = 0  # Default to 0 if the second API call fails
 
-            # Insert movie data into the database
-            cursor.execute("""
+                if genre_id and genre_name:
+                    genre_batch.append((genre_id, genre_name))
+
+                movie_batch.append((
+                    movie["id"],
+                    movie["title"],
+                    genre_id,
+                    movie["popularity"],
+                    movie["vote_average"],
+                    movie.get("release_date", None),
+                    revenue,
+                    movie.get("original_language", None),
+                ))
+
+                added_movies += 1
+                if added_movies >= limit:
+                    break
+
+            # Insert data into the database
+            db_cursor.executemany("INSERT OR IGNORE INTO genres (id, name) VALUES (?, ?)", genre_batch)
+            db_cursor.executemany(
+                """
                 INSERT OR IGNORE INTO movies (id, title, genre_id, popularity, rating, release_date, revenue, language)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                movie["id"],
-                movie["title"],
-                movie["genre_ids"][0] if movie["genre_ids"] else None,
-                movie["popularity"],
-                movie["vote_average"],
-                movie.get("release_date", None),
-                revenue,  # Updated with the revenue value from the second API call
-                movie.get("original_language", None)
-            ))
-        print(f"Movies added from page {page}.")
-    else:
-        print(f"Failed to fetch movies: {response.status_code}")
+                """,
+                movie_batch
+            )
+            db_connection.commit()
 
+            if added_movies > 0:
+                print(f"Added {len(movie_batch)} new movies from page {page}. Current total: {current_count + added_movies} movies.")
+            page += 1
 
+        except Exception as e:
+            print(f"An error occurred: {e}")
+            break
 
-def main():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    # Fetch genres
-    fetch_genres(cursor)
-
-    # Fetch movies (fetch from first 5 pages as an example)
-    for page in range(1, 6):
-        fetch_movies(cursor, page)
-
-    conn.commit()
-    conn.close()
-    print("Database successfully populated.")
+    print(f"Final movie count: {current_count + added_movies} movies.")
+    db_connection.close()
 
 if __name__ == "__main__":
-    main()
+    fetch_movie_data(target=100, max_per_run=20)

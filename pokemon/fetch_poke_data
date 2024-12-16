@@ -10,12 +10,14 @@ def fetch_data(url):
     with urllib.request.urlopen(req) as response:
         return json.loads(response.read().decode())
 
+
 def fetch_pokemon_data(target=100, max_per_run=25):
     db_connection = sqlite3.connect(DB_PATH)
     db_cursor = db_connection.cursor()
 
-
-    db_cursor.execute("""
+    # Ensure the Pokémon table exists
+    db_cursor.execute(
+        """
         CREATE TABLE IF NOT EXISTS pokemons (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE,
@@ -24,47 +26,56 @@ def fetch_pokemon_data(target=100, max_per_run=25):
             defense REAL,
             speed REAL
         );
-    """)
+        """
+    )
     db_connection.commit()
 
+    # Check the current count of Pokémon in the database
     db_cursor.execute("SELECT COUNT(DISTINCT name) FROM pokemons")
     current_count = db_cursor.fetchone()[0]
 
-    while current_count < target:
-        remaining = target - current_count
-        limit = min(remaining, max_per_run)
-        offset = current_count
-        url = f"https://pokeapi.co/api/v2/pokemon?limit={limit}&offset={offset}"
-        try:
-            data = fetch_data(url)
-            if not data['results']:
-                print("No more Pokémon to fetch!")
-                break
+    if current_count >= target:
+        print(f"Pokémon database already contains {current_count} items. No more fetching needed.")
+        db_connection.close()
+        return
 
-            pokemon_batch = []
-            for pokemon in data['results']:
-                detailed_data = fetch_data(pokemon['url'])
-                name = detailed_data['name']
-                poke_type = detailed_data['types'][0]['type']['name']
-                attack = detailed_data['stats'][1]['base_stat']
-                defense = detailed_data['stats'][2]['base_stat']
-                speed = detailed_data['stats'][5]['base_stat']
-                pokemon_batch.append((name, poke_type, attack, defense, speed))
+    remaining = target - current_count
+    limit = min(remaining, max_per_run)  # Fetch only what's needed to reach the target
+    offset = current_count
 
-            db_cursor.executemany(
-                "INSERT OR IGNORE INTO pokemons (name, type, attack, defense, speed) VALUES (?, ?, ?, ?, ?)",
-                pokemon_batch
-            )
-            db_connection.commit()
-            current_count += len(pokemon_batch)
-            print(f"Added {len(pokemon_batch)} Pokémon to the database. Total: {current_count}")
+    url = f"https://pokeapi.co/api/v2/pokemon?limit={limit}&offset={offset}"
+    try:
+        data = fetch_data(url)
+        if not data['results']:
+            print("No more Pokémon to fetch!")
+            db_connection.close()
+            return
 
-        except urllib.error.HTTPError as e:
-            print(f"Failed to fetch Pokémon data. HTTP Error: {e}")
-            break
+        pokemon_batch = []
+        for pokemon in data['results']:
+            detailed_data = fetch_data(pokemon['url'])
+            name = detailed_data['name']
+            poke_type = detailed_data['types'][0]['type']['name']
+            attack = detailed_data['stats'][1]['base_stat']
+            defense = detailed_data['stats'][2]['base_stat']
+            speed = detailed_data['stats'][5]['base_stat']
+            pokemon_batch.append((name, poke_type, attack, defense, speed))
 
-    print(f"Produced {current_count} Pokémon in the database. Target of {target} reached!")
+        # Insert Pokémon data into the database
+        db_cursor.executemany(
+            "INSERT OR IGNORE INTO pokemons (name, type, attack, defense, speed) VALUES (?, ?, ?, ?, ?)",
+            pokemon_batch
+        )
+        db_connection.commit()
+        current_count += len(pokemon_batch)
+        print(f"Added {len(pokemon_batch)} Pokémon to the database. Total: {current_count}")
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+    print(f"Final Pokémon count: {current_count}")
     db_connection.close()
+
 
 if __name__ == "__main__":
     fetch_pokemon_data(target=100, max_per_run=25)
