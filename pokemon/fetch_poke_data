@@ -1,0 +1,48 @@
+import sqlite3
+import urllib.request
+import json
+
+def fetch_data(url):
+    headers = {"User-Agent": "SI206-Pokemon-Stats-Project"}
+    req = urllib.request.Request(url, headers=headers)
+    with urllib.request.urlopen(req) as response:
+        return json.loads(response.read().decode())
+
+def fetch_next_batch(limit=25):
+    db_connection = sqlite3.connect('data/pokemon_data.sqlite3')
+    db_cursor = db_connection.cursor()
+
+    db_cursor.execute("SELECT COUNT(DISTINCT name) FROM pokemons")
+    existing_count = db_cursor.fetchone()[0]
+
+    offset = existing_count
+    url = f"https://pokeapi.co/api/v2/pokemon?limit={limit}&offset={offset}"
+    try:
+        data = fetch_data(url)
+        if not data['results']:
+            print("No more Pokémon to fetch!")
+            return
+
+        pokemon_batch = []
+        for pokemon in data['results']:
+            detailed_data = fetch_data(pokemon['url'])
+            name = detailed_data['name']
+            poke_type = detailed_data['types'][0]['type']['name']
+            attack = detailed_data['stats'][1]['base_stat']
+            defense = detailed_data['stats'][2]['base_stat']
+            speed = detailed_data['stats'][5]['base_stat']
+            pokemon_batch.append((name, poke_type, attack, defense, speed))
+
+        db_cursor.executemany(
+            "INSERT OR IGNORE INTO pokemons (name, type, attack, defense, speed) VALUES (?, ?, ?, ?, ?)",
+            pokemon_batch
+        )
+        db_connection.commit()
+        print(f"Added {len(pokemon_batch)} Pokémon to the database!")
+    except urllib.error.HTTPError as e:
+        print(f"Failed to fetch Pokémon data. HTTP Error: {e}")
+    finally:
+        db_connection.close()
+
+if __name__ == "__main__":
+    fetch_next_batch()

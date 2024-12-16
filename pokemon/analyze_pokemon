@@ -1,0 +1,25 @@
+import sqlite3
+
+def analyze_data():
+    db_connection = sqlite3.connect('data/pokemon_data.sqlite3')
+    db_cursor = db_connection.cursor()
+
+    db_cursor.execute("SELECT type, COUNT(*) FROM pokemons GROUP BY type")
+    type_counts = db_cursor.fetchall()
+    print("Pokémon counts by type:")
+    for row in type_counts:
+        print(f"Type: {row[0]}, Count: {row[1]}")
+
+    db_cursor.execute("SELECT name, speed FROM pokemons ORDER BY speed DESC LIMIT 1")
+    fastest_pokemon = db_cursor.fetchone()
+    print(f"Fastest Pokémon: {fastest_pokemon[0]} with speed {fastest_pokemon[1]}")
+
+    db_cursor.execute("SELECT name, attack FROM pokemons ORDER BY attack DESC LIMIT 1")
+    strongest_pokemon = db_cursor.fetchone()
+    print(f"Strongest Pokémon: {strongest_pokemon[0]} with attack {strongest_pokemon[1]}")
+
+    db_connection.close()
+    return type_counts
+
+if __name__ == "__main__":
+    analyze_data()
