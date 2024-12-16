@@ -1,6 +1,8 @@
 import sqlite3
 import urllib.request
 import json
+from poke_config import DB_PATH
+
 
 def fetch_data(url):
     headers = {"User-Agent": "SI206-Pokemon-Stats-Project"}
@@ -9,8 +11,9 @@ def fetch_data(url):
         return json.loads(response.read().decode())
 
 def fetch_pokemon_data(target=100, max_per_run=25):
-    db_connection = sqlite3.connect('data/pokemon_data.sqlite3')
+    db_connection = sqlite3.connect(DB_PATH)
     db_cursor = db_connection.cursor()
+
 
     db_cursor.execute("""
         CREATE TABLE IF NOT EXISTS pokemons (
