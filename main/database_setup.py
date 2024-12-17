@@ -1,7 +1,6 @@
 import sqlite3
 import os
 
-# Define the database path
 DB_PATH = os.path.join(os.path.dirname(__file__), "../database/data.db")
 
 def connect_to_database():
@@ -15,6 +14,17 @@ def connect_to_database():
     conn = sqlite3.connect(DB_PATH)
     return conn
 
+def create_types_table(cur):
+    """
+    Create the Pokémon types table.
+    """
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS types (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        type_name TEXT UNIQUE
+    );
+    """)
+
 def create_pokemon_table(cur):
     """
     Create the Pokémon table.
@@ -23,10 +33,11 @@ def create_pokemon_table(cur):
     CREATE TABLE IF NOT EXISTS pokemons (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT UNIQUE,
-        type TEXT,
+        type_id INTEGER,
         attack REAL,
         defense REAL,
-        speed REAL
+        speed REAL,
+        FOREIGN KEY (type_id) REFERENCES types (id)
     );
     """)
 
@@ -64,7 +75,8 @@ def initialize_database():
     conn = connect_to_database()
     cur = conn.cursor()
 
-    # Create Pokémon table
+    # Create Pokémon tables (types and pokemons)
+    create_types_table(cur)
     create_pokemon_table(cur)
 
     # Create Movies and Genres tables
