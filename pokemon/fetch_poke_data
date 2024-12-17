@@ -10,72 +10,85 @@ def fetch_data(url):
     with urllib.request.urlopen(req) as response:
         return json.loads(response.read().decode())
 
-
-def fetch_pokemon_data(target=100, max_per_run=25):
-    db_connection = sqlite3.connect(DB_PATH)
+def initialize_database():
+    db_connection = sqlite3.connect(DB_PATH)  # Use shared data.db
     db_cursor = db_connection.cursor()
 
-    # the table exists
-    db_cursor.execute(
-        """
+    db_cursor.execute("""
+        CREATE TABLE IF NOT EXISTS types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            type_name TEXT UNIQUE
+        );
+    """)
+
+    db_cursor.execute("""
         CREATE TABLE IF NOT EXISTS pokemons (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT UNIQUE,
-            type TEXT,
+            type_id INTEGER,
             attack REAL,
             defense REAL,
-            speed REAL
+            speed REAL,
+            FOREIGN KEY (type_id) REFERENCES types (id)
         );
-        """
-    )
-    db_connection.commit()
+    """)
 
-    # check the current count in the database
+    db_connection.commit()
+    db_connection.close()
+
+def get_or_insert_type(type_name, db_cursor):
+    db_cursor.execute("SELECT id FROM types WHERE type_name = ?", (type_name,))
+    result = db_cursor.fetchone()
+    if result:
+        return result[0]
+    db_cursor.execute("INSERT INTO types (type_name) VALUES (?)", (type_name,))
+    return db_cursor.lastrowid
+
+def fetch_pokemon_data(target=100, max_per_run=25):
+    db_connection = sqlite3.connect(DB_PATH)  # Use shared data.db
+    db_cursor = db_connection.cursor()
+
     db_cursor.execute("SELECT COUNT(DISTINCT name) FROM pokemons")
     current_count = db_cursor.fetchone()[0]
 
-    if current_count >= target:
-        print(f"Pokémon database already contains {current_count} items. No more fetching needed.")
-        db_connection.close()
-        return
+    while current_count < target:
+        remaining = target - current_count
+        limit = min(remaining, max_per_run)
+        offset = current_count
+        url = f"https://pokeapi.co/api/v2/pokemon?limit={limit}&offset={offset}"
 
-    remaining = target - current_count
-    limit = min(remaining, max_per_run)  
-    offset = current_count
+        try:
+            data = fetch_data(url)
+            if not data['results']:
+                print("No more Pokémon to fetch!")
+                break
 
-    url = f"https://pokeapi.co/api/v2/pokemon?limit={limit}&offset={offset}"
-    try:
-        data = fetch_data(url)
-        if not data['results']:
-            print("No more Pokémon to fetch!")
-            db_connection.close()
-            return
+            pokemon_batch = []
+            for pokemon in data['results']:
+                detailed_data = fetch_data(pokemon['url'])
+                name = detailed_data['name']
+                poke_type = detailed_data['types'][0]['type']['name']
+                type_id = get_or_insert_type(poke_type, db_cursor)
+                attack = detailed_data['stats'][1]['base_stat']
+                defense = detailed_data['stats'][2]['base_stat']
+                speed = detailed_data['stats'][5]['base_stat']
+                pokemon_batch.append((name, type_id, attack, defense, speed))
 
-        pokemon_batch = []
-        for pokemon in data['results']:
-            detailed_data = fetch_data(pokemon['url'])
-            name = detailed_data['name']
-            poke_type = detailed_data['types'][0]['type']['name']
-            attack = detailed_data['stats'][1]['base_stat']
-            defense = detailed_data['stats'][2]['base_stat']
-            speed = detailed_data['stats'][5]['base_stat']
-            pokemon_batch.append((name, poke_type, attack, defense, speed))
+            db_cursor.executemany(
+                "INSERT OR IGNORE INTO pokemons (name, type_id, attack, defense, speed) VALUES (?, ?, ?, ?, ?)",
+                pokemon_batch
+            )
+            db_connection.commit()
+            current_count += len(pokemon_batch)
+            print(f"Added {len(pokemon_batch)} Pokémon to the database. Total: {current_count}")
 
-        # insert data into the database
-        db_cursor.executemany(
-            "INSERT OR IGNORE INTO pokemons (name, type, attack, defense, speed) VALUES (?, ?, ?, ?, ?)",
-            pokemon_batch
-        )
-        db_connection.commit()
-        current_count += len(pokemon_batch)
-        print(f"Added {len(pokemon_batch)} Pokémon to the database. Total: {current_count}")
+        except urllib.error.HTTPError as e:
+            print(f"Failed to fetch Pokémon data. HTTP Error: {e}")
+            break
 
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-    print(f"Final Pokémon count: {current_count}")
+    print(f"Produced {current_count} Pokémon in the database. Target of {target} reached!")
     db_connection.close()
 
-
 if __name__ == "__main__":
+    initialize_database()
     fetch_pokemon_data(target=100, max_per_run=25)
